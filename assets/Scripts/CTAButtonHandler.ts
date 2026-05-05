@@ -1,4 +1,5 @@
 import { _decorator, Component, AudioSource, find, CCString } from 'cc';
+import { Analytics, analyticsEvents } from './Analytics';
 
 // Declare the mraid object to TypeScript to avoid compilation errors.
 // This object is provided by the ad container environment at runtime.
@@ -47,6 +48,12 @@ export class CTAButtonHandler extends Component {
      */
     public onStoreButtonClicked(): void {
         console.log("Store button clicked!");
+        
+        // --- Analytics: CTA Clicked ---
+        if (Analytics.instance) {
+            Analytics.instance.dispatchEvent(analyticsEvents.CTA_CLICKED);
+            console.log("TRACKING: 🎯 CTA_CLICKED event sent");
+        }
 
         // Standard practice: stop audio before redirecting
         const mainAudio = find("Canvas-001/GameCamera")?.getComponent(AudioSource);

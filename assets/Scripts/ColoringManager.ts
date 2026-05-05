@@ -4,6 +4,7 @@ import { DropZone } from './DropZone';
 import { TutorialDragController } from './TutorialDragController';
 import { StickerAnimation } from './StickerAnimation';
 import { GlobalTimer } from './GameTimer';
+import { Analytics, analyticsEvents } from './Analytics';
 
 const { ccclass, property } = _decorator;
 
@@ -93,6 +94,7 @@ export class ColoringGameManager extends Component {
     private readonly IDLE_HINT_DURATION: number = 7.0; // 7 seconds
     private isIdleHintActive: boolean = false;
     private playerHasInteracted: boolean = false; // To track the very first interaction
+    private challengeStartedTracked: boolean = false; // For analytics
 
     onLoad() {
         director.on('TIME_UP', this.onTimeUp, this);
@@ -122,12 +124,19 @@ export class ColoringGameManager extends Component {
         this.playerHasInteracted = false;
         this.idleTime = 0;
         this.completedDropZoneIds.clear(); // Ensure it's empty at the start of a new game
+        this.challengeStartedTracked = false;
         
         this.updateProgressLabel();
 
         // Force the UI tray to always be on top.
         if (this.itemsTrayNode) {
             this.itemsTrayNode.setSiblingIndex(999);
+        }
+        
+        // --- Analytics: Reset tracking and send DISPLAYED event ---
+        if (Analytics.instance) {
+            Analytics.instance.resetTracking();
+            Analytics.instance.dispatchEvent(analyticsEvents.DISPLAYED);
         }
         
         // Start the intro tutorial after a brief delay.
@@ -293,6 +302,12 @@ private handleCorrectDrop(item: DraggableItem, zone: DropZone) {
         this.updateProgressLabel();
         
         console.log(`TRACKING: Progress ${this.correctlyPlacedItems} / ${this.itemsToWinEarly || this.totalItemsToPlace}`);
+        
+        // --- Analytics: Track progress percentage ---
+        const progressPercent = (this.correctlyPlacedItems / (this.itemsToWinEarly || this.totalItemsToPlace)) * 100;
+        if (Analytics.instance) {
+            Analytics.instance.trackChallengeProgress(progressPercent);
+        }
 
         // --- DEFINE WIN SEQUENCE ---
         const triggerWinSequence = () => {
@@ -391,6 +406,13 @@ private playEffectAndFinalize(item: DraggableItem, zone: DropZone, onComplete: F
     private onTimeUp() {
         console.log("ColoringGameManager (Scene 2) heard TIME_UP event!");
         // When time runs out, the player loses
+        
+        // --- Analytics: Time up = Challenge Failed ---
+        if (Analytics.instance) {
+            Analytics.instance.dispatchEvent(analyticsEvents.CHALLENGE_FAILED);
+            console.log("TRACKING: ⏰ CHALLENGE_FAILED event sent (Time Up - Coloring Game)");
+        }
+        
         this.loseGame(this.timeUpMessage);
     }
     
@@ -407,6 +429,12 @@ private playEffectAndFinalize(item: DraggableItem, zone: DropZone, onComplete: F
     // Stop any active idle hint when the game ends
     if (this.isIdleHintActive && this.tutorialController) {
         (this.tutorialController as any).stopTutorial();
+    }
+    
+    // --- Analytics: Challenge Solved ---
+    if (Analytics.instance) {
+        Analytics.instance.dispatchEvent(analyticsEvents.CHALLENGE_SOLVED);
+        console.log("TRACKING: 🏆 CHALLENGE_SOLVED event sent (Coloring Game)");
     }
 
     if (this.endScreenTitleLabel) {
@@ -427,6 +455,12 @@ private playEffectAndFinalize(item: DraggableItem, zone: DropZone, onComplete: F
             opacity.opacity = 0;
             tween(this.ctaButtonNode).to(0.5, { scale: Vec3.ONE }, { easing: 'backOut' }).start();
             tween(opacity).to(0.4, { opacity: 255 }).start();
+            
+            // --- Analytics: Endcard shown on win ---
+            if (Analytics.instance) {
+                Analytics.instance.dispatchEvent(analyticsEvents.ENDCARD_SHOWN);
+                console.log("TRACKING: 📺 ENDCARD_SHOWN event sent (Coloring Game - Win)");
+            }
         }, 0.5);
     }
     }
@@ -463,6 +497,12 @@ private playEffectAndFinalize(item: DraggableItem, zone: DropZone, onComplete: F
                 opacity.opacity = 0;
                 tween(this.ctaButtonNode).to(0.5, { scale: Vec3.ONE }, { easing: 'backOut' }).start();
                 tween(opacity).to(0.4, { opacity: 255 }).start();
+                
+                // --- Analytics: Endcard shown on loss ---
+                if (Analytics.instance) {
+                    Analytics.instance.dispatchEvent(analyticsEvents.ENDCARD_SHOWN);
+                    console.log("TRACKING: 📺 ENDCARD_SHOWN event sent (Coloring Game - Loss)");
+                }
             }, 0.5);
         }
     }

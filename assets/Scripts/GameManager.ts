@@ -5,6 +5,8 @@ import { CollectionTrackerUI } from './CollectionTrackerUI';
 import { TutorialController } from './TutorialController';
 import { GlobalTimer } from './GameTimer';
 
+import { Analytics, analyticsEvents } from './Analytics';
+
 const { ccclass, property } = _decorator;
 
 @ccclass('CollectionGoal')
@@ -77,6 +79,8 @@ export class GameManager extends Component {
     private idleTime: number = 0;
     private goalProgress: number[] = [];
     private collectedItemsPerGoal: Set<number>[] = [];
+    private challengeStartedTracked: boolean = false;
+    private totalGoalAmount: number = 0;
     
     private isGameStarted: boolean = false;
     private isTutorialActive: boolean = false;
@@ -146,7 +150,14 @@ export class GameManager extends Component {
             }
             this.goalProgress.push(0);
             this.collectedItemsPerGoal.push(new Set<number>());
+            this.totalGoalAmount += goal.requiredAmount;
         });
+        
+        // --- Analytics: Reset tracking and send DISPLAYED event ---
+        if (Analytics.instance) {
+            Analytics.instance.resetTracking();
+            Analytics.instance.dispatchEvent(analyticsEvents.DISPLAYED);
+        }
         
         this.refillAndShuffleSpawnLanes();
         this.spawnInitialItems();
@@ -210,6 +221,13 @@ export class GameManager extends Component {
         if (!this.isGameStarted && !this.isGameOver) {
             this.isGameStarted = true;
             if (this.bgmAudioSource) this.bgmAudioSource.play();
+            
+            // --- Analytics: First interaction = Challenge Started ---
+            if (!this.challengeStartedTracked && Analytics.instance) {
+                this.challengeStartedTracked = true;
+                Analytics.instance.dispatchEvent(analyticsEvents.CHALLENGE_STARTED);
+                console.log("TRACKING: 🎮 CHALLENGE_STARTED event sent (Merge Game)");
+            }
         }
     }
     
@@ -242,6 +260,13 @@ export class GameManager extends Component {
             this.scheduleOnce(() => this.startSpawnHint(), 0.5);
         } else {
             this.scheduleOnce(() => this.checkAndShowStuckHint(), 0.5);
+        }
+        
+        // --- Analytics: Track progress based on total collection ---
+        const totalCollected = this.goalProgress.reduce((a, b) => a + b, 0);
+        const progressPercent = (totalCollected / this.totalGoalAmount) * 100;
+        if (Analytics.instance) {
+            Analytics.instance.trackChallengeProgress(progressPercent);
         }
     }
 
@@ -430,6 +455,11 @@ export class GameManager extends Component {
     private onTimeUp() {
         console.log("GameManager (Scene 1) heard TIME_UP event!");
         if (!this.isGameOver) {
+            // --- Analytics: Time up = Challenge Failed ---
+            if (Analytics.instance) {
+                Analytics.instance.dispatchEvent(analyticsEvents.CHALLENGE_FAILED);
+                console.log("TRACKING: ⏰ CHALLENGE_FAILED event sent (Time Up - Merge Game)");
+            }
             this.endGame(false);
         }
     }
@@ -445,6 +475,11 @@ export class GameManager extends Component {
         if (this.tutorialController) this.tutorialController.stopTutorial();
     
         if (didWin) {
+            // --- Analytics: Win sequence ---
+            if (Analytics.instance) {
+                Analytics.instance.dispatchEvent(analyticsEvents.CHALLENGE_SOLVED);
+                console.log("TRACKING: 🏆 CHALLENGE_SOLVED event sent (Merge Game)");
+            }
             if (this.winSceneName) {
                 this.scheduleOnce(() => director.loadScene(this.winSceneName), 0.5); 
             } else {
@@ -456,6 +491,11 @@ export class GameManager extends Component {
                 this.endScreenNode.active = true;
                 if (this.endScreenTitleLabel) {
                     this.endScreenTitleLabel.string = this.loseMessage;
+                }
+                // --- Analytics: Endcard shown on loss ---
+                if (Analytics.instance) {
+                    Analytics.instance.dispatchEvent(analyticsEvents.ENDCARD_SHOWN);
+                    console.log("TRACKING: 📺 ENDCARD_SHOWN event sent (Merge Game - Loss)");
                 }
             }
         }
