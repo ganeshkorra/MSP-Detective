@@ -5,8 +5,8 @@ const { ccclass, property } = _decorator;
 export class GlobalTimer extends Component {
 
     // --- CONFIGURATION ---
-    public static readonly TOTAL_TIME: number = 90; 
-    public static remainingTime: number = 90;
+    public static readonly TOTAL_TIME: number = 120; 
+    public static remainingTime: number = 120;
 
     // --- FIX: Re-adding isRunning for ItemController compatibility ---
     public static isRunning: boolean = false;

@@ -71,7 +71,7 @@ export class GameManager extends Component {
     public spawnHintLabel: Label = null;
 
     public isGameOver: boolean = false;
-    private readonly IDLE_TUTORIAL_THRESHOLD = 5.0;
+    private readonly IDLE_TUTORIAL_THRESHOLD = 10.0;
     private readonly SPOTLIGHT_DARK_OPACITY = 200;
     private readonly TUTORIAL_DARK_OPACITY = 220;
     private readonly NUM_SPAWN_LANES: number = 5;
@@ -246,7 +246,7 @@ export class GameManager extends Component {
         const nextLevel = mergedLevel + 1;
         let newItem: Node | null = null;
 
-        if (nextLevel >= 2) {
+        if (nextLevel >= 3) {
             this.animateItemToCollectionUI(itemId, position);
         } else {
             newItem = this.createItem(itemId, nextLevel, position);
@@ -268,6 +268,9 @@ export class GameManager extends Component {
         if (Analytics.instance) {
             Analytics.instance.trackChallengeProgress(progressPercent);
         }
+        
+        // --- Spawn new item on successful merge ---
+        this.scheduleOnce(() => this.spawnNextNeededItem(), 0.3);
     }
 
     private hasAvailableMerges(): boolean {
@@ -280,7 +283,7 @@ export class GameManager extends Component {
             }
         }
         for (const count of itemCounts.values()) {
-            if (count >= 2) return true;
+            if (count >= 3) return true;
         }
         return false;
     }
@@ -326,11 +329,11 @@ export class GameManager extends Component {
                 }).start();
         }
 
-        if (this.tutorialController && this.spawnButtonItem) {
-            const tc: any = this.tutorialController;
-            if (typeof tc.playClickTutorial === 'function') tc.playClickTutorial(this.spawnButtonItem);
-            else if (typeof tc.playTutorial === 'function') tc.playTutorial(this.spawnButtonItem);
-        }
+        // if (this.tutorialController && this.spawnButtonItem) {
+        //     const tc: any = this.tutorialController;
+        //     if (typeof tc.playClickTutorial === 'function') tc.playClickTutorial(this.spawnButtonItem);
+        //     else if (typeof tc.playTutorial === 'function') tc.playTutorial(this.spawnButtonItem);
+        // }
     }
     
     private cleanupSpawnHint() {
@@ -519,7 +522,7 @@ export class GameManager extends Component {
     let startNode: Node | null = null;
     let endNode: Node | null = null;
 
-    if (tutorialItems.length >= 2) {
+    if (tutorialItems.length >= 3) {
         startNode = tutorialItems[0];
         endNode = tutorialItems[1];
     }
