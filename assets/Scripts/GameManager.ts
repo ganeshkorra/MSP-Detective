@@ -260,7 +260,7 @@ export class GameManager extends Component {
         const nextLevel = mergedLevel + 1;
         let newItem: Node | null = null;
 
-        if (nextLevel >= 3) {
+        if (nextLevel >= 2) {
             this.animateItemToCollectionUI(itemId, position);
         } else {
             newItem = this.createItem(itemId, nextLevel, position);
@@ -431,14 +431,45 @@ export class GameManager extends Component {
     
     spawnNextNeededItem() {
         if (this.isGameOver) return;
-        let uncollectedItemIds: number[] = [];
-        this.collectionGoals.forEach((goal, index) => {
-            const neededForThisGoal = goal.itemIds.filter(id => !this.collectedItemsPerGoal[index].has(id));
-            uncollectedItemIds.push(...neededForThisGoal);
-        });
-        if (uncollectedItemIds.length === 0) return;
+        
+        // --- NEW LOGIC: Prioritize sceneTriggerTracker items ---
+        let itemsToConsider: number[] = [];
+        
+        if (this.sceneTriggerTracker) {
+            // Find the goal index that matches sceneTriggerTracker
+            const triggerGoalIndex = this.collectionGoals.findIndex(g => g.trackerUI === this.sceneTriggerTracker);
+            
+            if (triggerGoalIndex !== -1) {
+                const triggerGoal = this.collectionGoals[triggerGoalIndex];
+                const triggerGoalComplete = this.goalProgress[triggerGoalIndex] >= triggerGoal.requiredAmount;
+                
+                if (!triggerGoalComplete) {
+                    // Only spawn items from the trigger goal until it's complete
+                    itemsToConsider = triggerGoal.itemIds.filter(id => !this.collectedItemsPerGoal[triggerGoalIndex].has(id));
+                } else {
+                    // Trigger goal is complete, spawn from other goals
+                    this.collectionGoals.forEach((goal, index) => {
+                        if (index !== triggerGoalIndex) {
+                            const neededForThisGoal = goal.itemIds.filter(id => !this.collectedItemsPerGoal[index].has(id));
+                            itemsToConsider.push(...neededForThisGoal);
+                        }
+                    });
+                }
+            }
+        } else {
+            // No trigger tracker set, spawn from all uncollected items
+            this.collectionGoals.forEach((goal, index) => {
+                const neededForThisGoal = goal.itemIds.filter(id => !this.collectedItemsPerGoal[index].has(id));
+                itemsToConsider.push(...neededForThisGoal);
+            });
+        }
+        
+        if (itemsToConsider.length === 0) return;
+        
+        // --- END NEW LOGIC ---
+        
         const allItemsOnBoard = this.itemContainer.children.map(c => c.getComponent(ItemController)).filter(c => c !== null);
-        const relevantItemsOnBoard = allItemsOnBoard.filter(item => uncollectedItemIds.indexOf(item.itemId) !== -1);
+        const relevantItemsOnBoard = allItemsOnBoard.filter(item => itemsToConsider.indexOf(item.itemId) !== -1);
         let itemToSpawnId: number | null = null;
         if (relevantItemsOnBoard.length > 0) {
             const itemCountsOnBoard = new Map<number, number>();
@@ -452,7 +483,7 @@ export class GameManager extends Component {
             }
         }
         if (itemToSpawnId === null) {
-            itemToSpawnId = uncollectedItemIds[Math.floor(randomRange(0, uncollectedItemIds.length))];
+            itemToSpawnId = itemsToConsider[Math.floor(randomRange(0, itemsToConsider.length))];
         }
         if (itemToSpawnId !== null) {
             const spawnPosition = this.getSpawningPosition();
@@ -559,7 +590,7 @@ export class GameManager extends Component {
     let startNode: Node | null = null;
     let endNode: Node | null = null;
 
-    if (tutorialItems.length >= 3) {
+    if (tutorialItems.length >= 2) {
         startNode = tutorialItems[0];
         endNode = tutorialItems[1];
     }
