@@ -3248,7 +3248,7 @@
       "__id__": 91
     },
     "_children": [],
-    "_active": false,
+    "_active": true,
     "_components": [
       {
         "__id__": 107
@@ -3261,7 +3261,7 @@
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": 567.121,
+      "y": 296.001,
       "z": 0
     },
     "_lrot": {
