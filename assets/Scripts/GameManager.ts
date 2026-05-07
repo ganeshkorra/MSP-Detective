@@ -193,15 +193,14 @@ export class GameManager extends Component {
  private handleFirstInput() {
         console.log("TRACKING: First Input Detected via Input System.");
         
+        // Start the timer on first interaction
+        GlobalTimer.startTimer();
+        
         // Play first touch animation if available
         if (this.firstTouchAnimator && !this.hasPlayedFirstTouchAnimation) {
             this.hasPlayedFirstTouchAnimation = true;
             this.firstTouchAnimator.play();
         }
-        
-        
-        // Remove listeners immediately so this only runs once and frees memory
-        input.off(Input.EventType.TOUCH_START, this.handleFirstInput, this);
         input.off(Input.EventType.MOUSE_DOWN, this.handleFirstInput, this);
     }
     
@@ -232,12 +231,6 @@ export class GameManager extends Component {
         if (this.isIdleSpotlightActive) this.cleanupIdleSpotlight();
         if (this.isTutorialActive) { this.isTutorialActive = false; if (this.tutorialController) this.tutorialController.stopTutorial(); }
         this.idleTime = 0;
-        
-        const globalTimer = this.node.getComponent(GlobalTimer as any) as GlobalTimer | null;
-        if (globalTimer) {
-              console.log("TRACKING: 👆 Player touched Merge Game. Requesting Timer Start.");
-            GlobalTimer.startTimer();
-        }
         
         if (!this.isGameStarted && !this.isGameOver) {
             this.isGameStarted = true;

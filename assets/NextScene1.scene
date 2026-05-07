@@ -8070,7 +8070,7 @@
         "__id__": 240
       }
     ],
-    "_active": true,
+    "_active": false,
     "_components": [
       {
         "__id__": 243
@@ -10854,7 +10854,7 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "autoStartOnLoad": true,
+    "autoStartOnLoad": false,
     "_id": "d9FFWqC45AuL7V1L6/eETZ"
   },
   {
