@@ -72,6 +72,8 @@ export class GameManager extends Component {
     public spawnHintLabel: Label = null;
     @property({ type: FrameAnimator, tooltip: "The frame animator to play when player first touches the game." })
     public firstTouchAnimator: FrameAnimator | null = null;
+    @property({ type: Node, tooltip: "The frame animator node that shows before player drags. Will be destroyed on first drag." })
+    public preDragAnimatorNode: Node | null = null;
 
     @property({ type: CollectionTrackerUI, tooltip: "If this specific UI Tracker is completed, the game wins immediately." })
     public sceneTriggerTracker: CollectionTrackerUI | null = null;
@@ -120,6 +122,7 @@ export class GameManager extends Component {
         if (this.endScreenNode) this.endScreenNode.active = false;
         if (this.tutorialSpotlightOverlay) this.tutorialSpotlightOverlay.active = false;
         if (this.spawnHintLabel) this.spawnHintLabel.node.active = false;
+        if (this.preDragAnimatorNode) this.preDragAnimatorNode.active = true;
         
         if (this.dragToMatchText) {
             this.dragToMatchText.active = true;
@@ -212,6 +215,12 @@ export class GameManager extends Component {
     }
 
     public playerDidStartDrag() {
+        // Destroy the pre-drag animator node when player starts dragging
+        if (this.preDragAnimatorNode && this.preDragAnimatorNode.isValid) {
+            this.preDragAnimatorNode.destroy();
+            this.preDragAnimatorNode = null;
+        }
+        
         if(this.dragToMatchText?.active) {
             Tween.stopAllByTarget(this.dragToMatchText); 
             const opacityComp = this.dragToMatchText.getComponent(UIOpacity) ?? this.dragToMatchText.addComponent(UIOpacity);
@@ -500,6 +509,12 @@ export class GameManager extends Component {
         if (this.isGameOver) return;
         this.isGameOver = true;
         if (this.bgmAudioSource) this.bgmAudioSource.stop();
+        
+        // Clean up pre-drag animator if still active
+        if (this.preDragAnimatorNode && this.preDragAnimatorNode.isValid) {
+            this.preDragAnimatorNode.destroy();
+            this.preDragAnimatorNode = null;
+        }
         
         this.cleanupSpawnHint();
         this.cleanupInitialTutorial();
