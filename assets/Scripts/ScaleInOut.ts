@@ -12,8 +12,8 @@ export class ScaleInOut extends Component {
     tween(this.node)
         .repeatForever(
             tween()
-                .to(0.5, { scale: new Vec3(0.396, 0.396, 0.396) }, { easing: 'sineOut' })
-                .to(0.5, { scale: new Vec3(0.436, 0.436, 0.436) }, { easing: 'sineIn' })
+                .to(0.5, { scale: new Vec3(0.806, 0.806, 0.806) }, { easing: 'sineOut' })
+                .to(0.5, { scale: new Vec3(0.85, 0.85, 0.85) }, { easing: 'sineIn' })
         )
         .start();
 }

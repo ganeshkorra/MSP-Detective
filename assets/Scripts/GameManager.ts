@@ -4,6 +4,7 @@ import { ItemController } from './ItemController';
 import { CollectionTrackerUI } from './CollectionTrackerUI';
 import { TutorialController } from './TutorialController';
 import { GlobalTimer } from './GameTimer';
+import { FrameAnimator } from './FrameAnimator';
 
 import { Analytics, analyticsEvents } from './Analytics';
 
@@ -69,6 +70,11 @@ export class GameManager extends Component {
     public spawnButtonItem: Node = null;
     @property({type: Label, tooltip: "The 'CLICK HERE!' text label for the spawn button hint."})
     public spawnHintLabel: Label = null;
+    @property({ type: FrameAnimator, tooltip: "The frame animator to play when player first touches the game." })
+    public firstTouchAnimator: FrameAnimator | null = null;
+
+    @property({ type: CollectionTrackerUI, tooltip: "If this specific UI Tracker is completed, the game wins immediately." })
+    public sceneTriggerTracker: CollectionTrackerUI | null = null;
 
     public isGameOver: boolean = false;
     private readonly IDLE_TUTORIAL_THRESHOLD = 10.0;
@@ -93,6 +99,7 @@ export class GameManager extends Component {
     private hasMadeFirstMerge: boolean = false;
     private isSpawnHintActive: boolean = false;
     private spawnButtonClickCount: number = 0;
+    private hasPlayedFirstTouchAnimation: boolean = false;
     
     onLoad() {
         director.on('TIME_UP', this.onTimeUp, this);
@@ -182,8 +189,13 @@ export class GameManager extends Component {
     }
  private handleFirstInput() {
         console.log("TRACKING: First Input Detected via Input System.");
-        // Start the Global Timer safely
-        GlobalTimer.startTimer();
+        
+        // Play first touch animation if available
+        if (this.firstTouchAnimator && !this.hasPlayedFirstTouchAnimation) {
+            this.hasPlayedFirstTouchAnimation = true;
+            this.firstTouchAnimator.play();
+        }
+        
         
         // Remove listeners immediately so this only runs once and frees memory
         input.off(Input.EventType.TOUCH_START, this.handleFirstInput, this);
@@ -344,11 +356,15 @@ export class GameManager extends Component {
         if (this.tutorialController) this.tutorialController.stopTutorial();
     }
     
-    private animateItemToCollectionUI(itemId: number, startPosition: Vec3) {
+   private animateItemToCollectionUI(itemId: number, startPosition: Vec3) {
         const itemData = this.itemDefinitions.find(data => data.itemId === itemId);
         const goalIndex = this.collectionGoals.findIndex(g => g.itemIds.indexOf(itemId) !== -1);
+        
         if (goalIndex === -1) return;
+
+        // 1. WE DECLARE 'goal' FIRST (This fixes your error)
         const goal = this.collectionGoals[goalIndex];
+
         if (!itemData || !goal.trackerUI || !this.uiCanvas) return;
 
         if (this.sfxAudioSource && itemData.collectionSound) this.sfxAudioSource.playOneShot(itemData.collectionSound);
@@ -356,6 +372,18 @@ export class GameManager extends Component {
         const currentAmount = this.goalProgress[goalIndex] + 1;
         this.goalProgress[goalIndex] = currentAmount;
         this.collectedItemsPerGoal[goalIndex].add(itemId);
+
+        // --- NEW TRANSITION LOGIC START ---
+        // We check if this specific UI tracker just finished
+        const isGoalFinished = currentAmount >= goal.requiredAmount;
+        if (isGoalFinished && goal.trackerUI === this.sceneTriggerTracker) {
+            if (!this.isGameOver) {
+                console.log("Trigger Goal Reached! Transitioning...");
+                this.endGame(true);
+                // We don't return here because we still want to see the animation fly to the UI
+            }
+        }
+        // --- NEW TRANSITION LOGIC END ---
 
         const animNode = new Node('CollectedItemAnimation');
         const sprite = animNode.addComponent(Sprite);
@@ -379,6 +407,7 @@ export class GameManager extends Component {
                     this.scheduleOnce(() => { if (goal.trackerUI?.isValid) goal.trackerUI.playCompletionAnimationAndHide() }, 0.5);
                 }
 
+                // Standard win condition (all goals met)
                 const allGoalsMet = this.collectionGoals.every((g, index) => this.goalProgress[index] >= g.requiredAmount);
                 if (allGoalsMet && !this.isGameOver) {
                     this.endGame(true);
